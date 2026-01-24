@@ -1,0 +1,217 @@
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Personal Dashboard</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        window.storage = {
+            get: async (key) => {
+                const value = localStorage.getItem(key);
+                return value ? { key, value } : null;
+            },
+            set: async (key, value) => {
+                localStorage.setItem(key, value);
+                return { key, value };
+            },
+            delete: async (key) => {
+                localStorage.removeItem(key);
+                return { key, deleted: true };
+            }
+        };
+
+        function Dashboard() {
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [notes, setNotes] = useState('');
+            const [tasks, setTasks] = useState([]);
+            const [links, setLinks] = useState([]);
+            const [events, setEvents] = useState([]);
+            const [newTask, setNewTask] = useState('');
+            const [newTaskDate, setNewTaskDate] = useState('');
+            const [newLink, setNewLink] = useState({ title: '', url: '' });
+            const [showEventModal, setShowEventModal] = useState(false);
+            const [selectedDay, setSelectedDay] = useState(null);
+            const [newEvent, setNewEvent] = useState('');
+
+            useEffect(() => {
+                const load = async () => {
+                    const n = await window.storage.get('notes');
+                    if (n) setNotes(n.value);
+                    const t = await window.storage.get('tasks');
+                    if (t) setTasks(JSON.parse(t.value));
+                    const l = await window.storage.get('links');
+                    if (l) setLinks(JSON.parse(l.value));
+                    const e = await window.storage.get('events');
+                    if (e) setEvents(JSON.parse(e.value));
+                };
+                load();
+            }, []);
+
+            useEffect(() => { if (notes) window.storage.set('notes', notes); }, [notes]);
+            useEffect(() => { if (tasks.length > 0) window.storage.set('tasks', JSON.stringify(tasks)); }, [tasks]);
+            useEffect(() => { if (links.length > 0) window.storage.set('links', JSON.stringify(links)); }, [links]);
+            useEffect(() => { if (events.length > 0) window.storage.set('events', JSON.stringify(events)); }, [events]);
+
+            const addTask = () => {
+                if (newTask && newTaskDate) {
+                    setTasks([...tasks, { id: Date.now(), text: newTask, date: newTaskDate, done: false }]);
+                    setNewTask('');
+                    setNewTaskDate('');
+                }
+            };
+
+            const addLink = () => {
+                if (newLink.title && newLink.url) {
+                    let url = newLink.url;
+                    if (!url.startsWith('http')) url = 'https://' + url;
+                    setLinks([...links, { id: Date.now(), title: newLink.title, url }]);
+                    setNewLink({ title: '', url: '' });
+                }
+            };
+
+            const addEvent = () => {
+                if (newEvent && selectedDay) {
+                    setEvents([...events, { id: Date.now(), date: selectedDay, text: newEvent }]);
+                    setNewEvent('');
+                    setShowEventModal(false);
+                }
+            };
+
+            const getDays = () => {
+                const y = currentDate.getFullYear();
+                const m = currentDate.getMonth();
+                const first = new Date(y, m, 1).getDay();
+                const last = new Date(y, m + 1, 0).getDate();
+                return { first, last };
+            };
+
+            const { first, last } = getDays();
+            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 p-6">
+                    {showEventModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+                                <h3 className="text-2xl font-bold mb-4">Add Event</h3>
+                                <input type="text" value={newEvent} onChange={(e) => setNewEvent(e.target.value)}
+                                    placeholder="Event details..." className="w-full px-4 py-2 border rounded-lg mb-4" />
+                                <div className="flex gap-2">
+                                    <button onClick={addEvent} className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg">Add</button>
+                                    <button onClick={() => setShowEventModal(false)} className="flex-1 px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="max-w-7xl mx-auto">
+                        <h1 className="text-4xl font-bold text-center mb-8">My Dashboard</h1>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Calendar */}
+                            <div className="bg-white rounded-xl shadow-lg p-6 lg:col-span-2">
+                                <div className="flex justify-between mb-4">
+                                    <h2 className="text-2xl font-bold">Calendar</h2>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                                            className="px-3 py-1 bg-rose-100 rounded-lg">Prev</button>
+                                        <button onClick={() => setCurrentDate(new Date())}
+                                            className="px-3 py-1 bg-rose-500 text-white rounded-lg">Today</button>
+                                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                                            className="px-3 py-1 bg-rose-100 rounded-lg">Next</button>
+                                    </div>
+                                </div>
+                                <div className="text-center text-xl font-bold mb-4">{months[currentDate.getMonth()]} {currentDate.getFullYear()}</div>
+                                <div className="grid grid-cols-7 gap-2">
+                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                                        <div key={d} className="text-center font-bold text-sm py-2">{d}</div>
+                                    ))}
+                                    {Array.from({ length: first }).map((_, i) => <div key={`e${i}`} />)}
+                                    {Array.from({ length: last }).map((_, i) => {
+                                        const day = i + 1;
+                                        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                        const hasEvent = events.some(e => e.date === dateStr);
+                                        const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+                                        return (
+                                            <button key={day} onClick={() => { setSelectedDay(dateStr); setShowEventModal(true); }}
+                                                className={`aspect-square rounded-lg font-medium ${isToday ? 'bg-rose-500 text-white' : 'bg-gray-50 hover:bg-rose-100'} ${hasEvent ? 'ring-2 ring-rose-400' : ''}`}>
+                                                {day}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Notes */}
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h2 className="text-2xl font-bold mb-4">Notes</h2>
+                                <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+                                    placeholder="Write notes..." className="w-full h-64 p-3 border rounded-lg resize-none" />
+                            </div>
+
+                            {/* Tasks */}
+                            <div className="bg-white rounded-xl shadow-lg p-6 lg:col-span-2">
+                                <h2 className="text-2xl font-bold mb-4">Tasks</h2>
+                                <div className="flex gap-2 mb-4">
+                                    <input type="text" value={newTask} onChange={(e) => setNewTask(e.target.value)}
+                                        placeholder="New task..." className="flex-1 px-4 py-2 border rounded-lg" />
+                                    <input type="date" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)}
+                                        className="px-4 py-2 border rounded-lg" />
+                                    <button onClick={addTask} className="px-4 py-2 bg-rose-500 text-white rounded-lg">Add</button>
+                                </div>
+                                <div className="space-y-2">
+                                    {tasks.map(t => (
+                                        <div key={t.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                            <input type="checkbox" checked={t.done} onChange={() => setTasks(tasks.map(x => x.id === t.id ? {...x, done: !x.done} : x))} />
+                                            <div className="flex-1">
+                                                <div className={t.done ? 'line-through text-gray-500' : ''}>{t.text}</div>
+                                                <div className="text-sm text-gray-500">{t.date}</div>
+                                            </div>
+                                            <button onClick={() => setTasks(tasks.filter(x => x.id !== t.id))} className="text-red-500">×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Links */}
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h2 className="text-2xl font-bold mb-4">Quick Links</h2>
+                                <div className="flex flex-col gap-2 mb-4">
+                                    <input type="text" value={newLink.title} onChange={(e) => setNewLink({...newLink, title: e.target.value})}
+                                        placeholder="Title..." className="px-4 py-2 border rounded-lg" />
+                                    <input type="text" value={newLink.url} onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                                        placeholder="URL..." className="px-4 py-2 border rounded-lg" />
+                                    <button onClick={addLink} className="px-4 py-2 bg-rose-500 text-white rounded-lg">Add Link</button>
+                                </div>
+                                <div className="space-y-2">
+                                    {links.map(l => (
+                                        <div key={l.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                                            <a href={l.url} target="_blank" className="flex-1 text-rose-600 truncate">{l.title}</a>
+                                            <button onClick={() => setLinks(links.filter(x => x.id !== l.id))} className="text-red-500">×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<Dashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+```
+
