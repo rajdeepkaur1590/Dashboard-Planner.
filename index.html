@@ -1,5 +1,3 @@
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,13 +139,27 @@
                                     {Array.from({ length: last }).map((_, i) => {
                                         const day = i + 1;
                                         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                        const hasEvent = events.some(e => e.date === dateStr);
+                                        const dayEvents = events.filter(e => e.date === dateStr);
+                                        const hasEvent = dayEvents.length > 0;
                                         const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
                                         return (
-                                            <button key={day} onClick={() => { setSelectedDay(dateStr); setShowEventModal(true); }}
-                                                className={`aspect-square rounded-lg font-medium ${isToday ? 'bg-rose-500 text-white' : 'bg-gray-50 hover:bg-rose-100'} ${hasEvent ? 'ring-2 ring-rose-400' : ''}`}>
-                                                {day}
-                                            </button>
+                                            <div key={day} className="relative">
+                                                <button onClick={() => { setSelectedDay(dateStr); setShowEventModal(true); }}
+                                                    className={`w-full aspect-square rounded-lg font-medium ${isToday ? 'bg-rose-500 text-white' : 'bg-gray-50 hover:bg-rose-100'} ${hasEvent ? 'ring-2 ring-rose-400' : ''}`}>
+                                                    {day}
+                                                    {hasEvent && <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-rose-600 rounded-full"></div>}
+                                                </button>
+                                                {hasEvent && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg p-2 z-10 text-xs max-h-32 overflow-y-auto">
+                                                        {dayEvents.map(event => (
+                                                            <div key={event.id} className="flex items-start gap-1 mb-1 last:mb-0">
+                                                                <span className="flex-1 text-gray-700">{event.text}</span>
+                                                                <button onClick={(e) => { e.stopPropagation(); setEvents(events.filter(ev => ev.id !== event.id)); }} className="text-red-500 hover:text-red-700">×</button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         );
                                     })}
                                 </div>
@@ -214,4 +226,3 @@
 </body>
 </html>
 ```
-
