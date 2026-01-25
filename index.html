@@ -56,10 +56,28 @@
                 load();
             }, []);
 
-            useEffect(() => { if (notes) window.storage.set('notes', notes); }, [notes]);
-            useEffect(() => { if (tasks.length > 0) window.storage.set('tasks', JSON.stringify(tasks)); }, [tasks]);
-            useEffect(() => { if (links.length > 0) window.storage.set('links', JSON.stringify(links)); }, [links]);
-            useEffect(() => { if (events.length > 0) window.storage.set('events', JSON.stringify(events)); }, [events]);
+            useEffect(() => { window.storage.set('notes', notes); }, [notes]);
+            useEffect(() => { 
+                if (tasks.length > 0) {
+                    window.storage.set('tasks', JSON.stringify(tasks));
+                } else {
+                    window.storage.delete('tasks');
+                }
+            }, [tasks]);
+            useEffect(() => { 
+                if (links.length > 0) {
+                    window.storage.set('links', JSON.stringify(links));
+                } else {
+                    window.storage.delete('links');
+                }
+            }, [links]);
+            useEffect(() => { 
+                if (events.length > 0) {
+                    window.storage.set('events', JSON.stringify(events));
+                } else {
+                    window.storage.delete('events');
+                }
+            }, [events]);
 
             const addTask = () => {
                 if (newTask && newTaskDate) {
