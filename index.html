@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,6 +44,7 @@
             const [newEvent, setNewEvent] = useState('');
             const [showThemeMenu, setShowThemeMenu] = useState(false);
             const [currentTheme, setCurrentTheme] = useState('pink');
+            const [openTab, setOpenTab] = useState(null);
 
             const themes = {
                 pink: { name: 'Light Pink', bg: 'from-pink-50 to-rose-100', btn: 'bg-rose-500 hover:bg-rose-600', btnLight: 'bg-rose-100 hover:bg-rose-200', text: 'text-rose-600', ring: 'ring-rose-400' },
@@ -57,16 +59,24 @@
 
             useEffect(() => {
                 const load = async () => {
-                    const n = await window.storage.get('notes');
-                    if (n) setNotes(n.value);
-                    const t = await window.storage.get('tasks');
-                    if (t) setTasks(JSON.parse(t.value));
-                    const l = await window.storage.get('links');
-                    if (l) setLinks(JSON.parse(l.value));
-                    const e = await window.storage.get('events');
-                    if (e) setEvents(JSON.parse(e.value));
-                    const th = await window.storage.get('theme');
-                    if (th) setCurrentTheme(th.value);
+                    try {
+                        const n = await window.storage.get('notes');
+                        if (n) setNotes(n.value);
+                        
+                        const t = await window.storage.get('tasks');
+                        if (t) setTasks(JSON.parse(t.value));
+                        
+                        const l = await window.storage.get('links');
+                        if (l) setLinks(JSON.parse(l.value));
+                        
+                        const e = await window.storage.get('events');
+                        if (e) setEvents(JSON.parse(e.value));
+                        
+                        const th = await window.storage.get('theme');
+                        if (th) setCurrentTheme(th.value);
+                    } catch (error) {
+                        console.log('Error loading data:', error);
+                    }
                 };
                 load();
             }, []);
@@ -76,21 +86,21 @@
                 if (tasks.length > 0) {
                     window.storage.set('tasks', JSON.stringify(tasks));
                 } else {
-                    window.storage.delete('tasks');
+                    localStorage.removeItem('tasks');
                 }
             }, [tasks]);
             useEffect(() => { 
                 if (links.length > 0) {
                     window.storage.set('links', JSON.stringify(links));
                 } else {
-                    window.storage.delete('links');
+                    localStorage.removeItem('links');
                 }
             }, [links]);
             useEffect(() => { 
                 if (events.length > 0) {
                     window.storage.set('events', JSON.stringify(events));
                 } else {
-                    window.storage.delete('events');
+                    localStorage.removeItem('events');
                 }
             }, [events]);
             useEffect(() => { window.storage.set('theme', currentTheme); }, [currentTheme]);
@@ -133,6 +143,19 @@
 
             return (
                 <div className={`min-h-screen bg-gradient-to-br ${theme.bg} p-6`}>
+                    {/* Embedded Tab Viewer */}
+                    {openTab && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-2xl w-full max-w-6xl h-5/6 flex flex-col`}>
+                                <div className={`flex items-center justify-between p-4 border-b ${theme.isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                                    <h3 className={`text-xl font-bold ${theme.isDark ? 'text-white' : 'text-gray-800'} truncate`}>{openTab.title}</h3>
+                                    <button onClick={() => setOpenTab(null)} className={theme.isDark ? 'text-gray-300' : 'text-gray-600'}>×</button>
+                                </div>
+                                <iframe src={openTab.url} className="flex-1 w-full rounded-b-2xl" title={openTab.title} />
+                            </div>
+                        </div>
+                    )}
+
                     {showThemeMenu && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-2xl p-6 max-w-md w-full`}>
@@ -264,6 +287,14 @@
                             {/* Links */}
                             <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
                                 <h2 className={`text-2xl font-bold mb-4 ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Quick Links</h2>
+                                
+                                {/* Info Note */}
+                                <div className={`mb-4 p-3 border rounded-lg text-sm ${theme.isDark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-rose-50 border-rose-200 text-gray-700'}`}>
+                                    <p className="font-semibold mb-1">📌 Opening Links:</p>
+                                    <p className="mb-1"><strong>Dashboard:</strong> Works for blogs, docs, Wikipedia, smaller sites</p>
+                                    <p><strong>New Tab:</strong> Works for ALL sites (Google, Facebook, Amazon, etc.)</p>
+                                </div>
+
                                 <div className="flex flex-col gap-2 mb-4">
                                     <input type="text" value={newLink.title} onChange={(e) => setNewLink({...newLink, title: e.target.value})}
                                         placeholder="Title..." className={`px-4 py-2 border rounded-lg ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`} />
@@ -274,8 +305,20 @@
                                 <div className="space-y-2">
                                     {links.map(l => (
                                         <div key={l.id} className={`flex items-center gap-2 p-3 rounded-lg ${theme.isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                                            <a href={l.url} target="_blank" className={`flex-1 ${theme.text} truncate`}>{l.title}</a>
-                                            <button onClick={() => setLinks(links.filter(x => x.id !== l.id))} className="text-red-500">×</button>
+                                            <div className="flex-1 flex items-center gap-2">
+                                                <span className={`${theme.isDark ? 'text-gray-200' : 'text-gray-700'} truncate`}>{l.title}</span>
+                                            </div>
+                                            <button onClick={() => setOpenTab({ title: l.title, url: l.url })}
+                                                className={`px-3 py-1 ${theme.btnLight} ${theme.isDark ? 'text-white' : ''} rounded text-sm font-medium whitespace-nowrap`}
+                                                title="Open in dashboard">
+                                                Dashboard
+                                            </button>
+                                            <a href={l.url} target="_blank" rel="noopener noreferrer"
+                                                className={`px-3 py-1 rounded text-sm font-medium whitespace-nowrap ${theme.isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                                                title="Open in new tab">
+                                                New Tab
+                                            </a>
+                                            <button onClick={() => setLinks(links.filter(x => x.id !== l.id))} className="text-red-500 hover:text-red-700">×</button>
                                         </div>
                                     ))}
                                 </div>
