@@ -15,18 +15,34 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
         
+        // Simple localStorage wrapper
         window.storage = {
-            get: async (key) => {
-                const value = localStorage.getItem(key);
-                return value ? { key, value } : null;
+            get: (key) => {
+                try {
+                    const value = localStorage.getItem(key);
+                    return value ? { key, value } : null;
+                } catch (e) {
+                    console.error('Storage get error:', e);
+                    return null;
+                }
             },
-            set: async (key, value) => {
-                localStorage.setItem(key, value);
-                return { key, value };
+            set: (key, value) => {
+                try {
+                    localStorage.setItem(key, value);
+                    return { key, value };
+                } catch (e) {
+                    console.error('Storage set error:', e);
+                    return null;
+                }
             },
-            delete: async (key) => {
-                localStorage.removeItem(key);
-                return { key, deleted: true };
+            delete: (key) => {
+                try {
+                    localStorage.removeItem(key);
+                    return { key, deleted: true };
+                } catch (e) {
+                    console.error('Storage delete error:', e);
+                    return null;
+                }
             }
         };
 
@@ -58,52 +74,69 @@
             const theme = themes[currentTheme];
 
             useEffect(() => {
-                const load = async () => {
+                const load = () => {
                     try {
-                        const n = await window.storage.get('notes');
-                        if (n) setNotes(n.value);
+                        const n = window.storage.get('notes');
+                        if (n && n.value) setNotes(n.value);
                         
-                        const t = await window.storage.get('tasks');
-                        if (t) setTasks(JSON.parse(t.value));
+                        const t = window.storage.get('tasks');
+                        if (t && t.value) {
+                            const parsed = JSON.parse(t.value);
+                            setTasks(parsed);
+                        }
                         
-                        const l = await window.storage.get('links');
-                        if (l) setLinks(JSON.parse(l.value));
+                        const l = window.storage.get('links');
+                        if (l && l.value) {
+                            const parsed = JSON.parse(l.value);
+                            setLinks(parsed);
+                        }
                         
-                        const e = await window.storage.get('events');
-                        if (e) setEvents(JSON.parse(e.value));
+                        const e = window.storage.get('events');
+                        if (e && e.value) {
+                            const parsed = JSON.parse(e.value);
+                            setEvents(parsed);
+                        }
                         
-                        const th = await window.storage.get('theme');
-                        if (th) setCurrentTheme(th.value);
+                        const th = window.storage.get('theme');
+                        if (th && th.value) setCurrentTheme(th.value);
                     } catch (error) {
-                        console.log('Error loading data:', error);
+                        console.error('Error loading data:', error);
                     }
                 };
                 load();
             }, []);
 
-            useEffect(() => { window.storage.set('notes', notes); }, [notes]);
+            useEffect(() => { 
+                window.storage.set('notes', notes); 
+            }, [notes]);
+            
             useEffect(() => { 
                 if (tasks.length > 0) {
                     window.storage.set('tasks', JSON.stringify(tasks));
                 } else {
-                    localStorage.removeItem('tasks');
+                    window.storage.delete('tasks');
                 }
             }, [tasks]);
+            
             useEffect(() => { 
                 if (links.length > 0) {
                     window.storage.set('links', JSON.stringify(links));
                 } else {
-                    localStorage.removeItem('links');
+                    window.storage.delete('links');
                 }
             }, [links]);
+            
             useEffect(() => { 
                 if (events.length > 0) {
                     window.storage.set('events', JSON.stringify(events));
                 } else {
-                    localStorage.removeItem('events');
+                    window.storage.delete('events');
                 }
             }, [events]);
-            useEffect(() => { window.storage.set('theme', currentTheme); }, [currentTheme]);
+            
+            useEffect(() => { 
+                window.storage.set('theme', currentTheme); 
+            }, [currentTheme]);
 
             const addTask = () => {
                 if (newTask && newTaskDate) {
