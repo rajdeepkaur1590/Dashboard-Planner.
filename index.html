@@ -1,209 +1,259 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Personal Dashboard</title>
+    <title>Elegant Dashboard</title>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@400;500;600&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .glass { 
+            background: rgba(255, 255, 255, 0.25); 
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        .glass-dark { 
+            background: rgba(0, 0, 0, 0.4); 
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        .widget-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .widget-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        .draggable { cursor: move; user-select: none; }
+        * { scrollbar-width: thin; scrollbar-color: rgba(155, 155, 155, 0.5) transparent; }
+        *::-webkit-scrollbar { width: 8px; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background-color: rgba(155, 155, 155, 0.5); border-radius: 20px; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
         
-        // Simple localStorage wrapper
-        window.storage = {
-            get: (key) => {
-                try {
-                    const value = localStorage.getItem(key);
-                    return value ? { key, value } : null;
-                } catch (e) {
-                    console.error('Storage get error:', e);
-                    return null;
-                }
-            },
-            set: (key, value) => {
-                try {
-                    localStorage.setItem(key, value);
-                    return { key, value };
-                } catch (e) {
-                    console.error('Storage set error:', e);
-                    return null;
-                }
-            },
-            delete: (key) => {
-                try {
-                    localStorage.removeItem(key);
-                    return { key, deleted: true };
-                } catch (e) {
-                    console.error('Storage delete error:', e);
-                    return null;
-                }
-            }
+        const storage = {
+            get: (k) => { try { const v = localStorage.getItem(k); return v ? { value: v } : null; } catch { return null; } },
+            set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+            del: (k) => { try { localStorage.removeItem(k); } catch {} }
         };
 
         function Dashboard() {
-            const [currentDate, setCurrentDate] = useState(new Date());
             const [notes, setNotes] = useState('');
             const [tasks, setTasks] = useState([]);
             const [links, setLinks] = useState([]);
             const [events, setEvents] = useState([]);
-            const [newTask, setNewTask] = useState('');
-            const [newTaskDate, setNewTaskDate] = useState('');
-            const [newLink, setNewLink] = useState({ title: '', url: '' });
-            const [showEventModal, setShowEventModal] = useState(false);
-            const [selectedDay, setSelectedDay] = useState(null);
-            const [newEvent, setNewEvent] = useState('');
-            const [showThemeMenu, setShowThemeMenu] = useState(false);
-            const [currentTheme, setCurrentTheme] = useState('pink');
+            const [habits, setHabits] = useState([]);
+            const [goals, setGoals] = useState([]);
+            const [images, setImages] = useState([]);
+            const [theme, setTheme] = useState('aurora');
+            const [time, setTime] = useState(new Date());
+            const [tz, setTz] = useState('local');
+            const [pomMin, setPomMin] = useState(25);
+            const [pomSec, setPomSec] = useState(25*60);
+            const [pomRun, setPomRun] = useState(false);
+            const [search, setSearch] = useState('');
+            const [showTheme, setShowTheme] = useState(false);
+            const [showTz, setShowTz] = useState(false);
+            const [showTimer, setShowTimer] = useState(false);
+            const [showEvent, setShowEvent] = useState(false);
+            const [selDay, setSelDay] = useState('');
             const [openTab, setOpenTab] = useState(null);
+            const [curDate, setCurDate] = useState(new Date());
+            const [dragImg, setDragImg] = useState(null);
 
             const themes = {
-                pink: { name: 'Light Pink', bg: 'from-pink-50 to-rose-100', btn: 'bg-rose-500 hover:bg-rose-600', btnLight: 'bg-rose-100 hover:bg-rose-200', text: 'text-rose-600', ring: 'ring-rose-400' },
-                blue: { name: 'White & Blue', bg: 'from-blue-50 to-sky-100', btn: 'bg-blue-500 hover:bg-blue-600', btnLight: 'bg-blue-100 hover:bg-blue-200', text: 'text-blue-600', ring: 'ring-blue-400' },
-                cream: { name: 'Cream & Brown', bg: 'from-amber-50 to-yellow-100', btn: 'bg-amber-700 hover:bg-amber-800', btnLight: 'bg-amber-200 hover:bg-amber-300', text: 'text-amber-800', ring: 'ring-amber-400' },
-                dark: { name: 'Dark Mode', bg: 'from-gray-900 to-gray-800', btn: 'bg-purple-600 hover:bg-purple-700', btnLight: 'bg-purple-900 hover:bg-purple-800', text: 'text-purple-400', ring: 'ring-purple-400', isDark: true },
-                purple: { name: 'White & Purple', bg: 'from-purple-50 to-violet-100', btn: 'bg-purple-500 hover:bg-purple-600', btnLight: 'bg-purple-100 hover:bg-purple-200', text: 'text-purple-600', ring: 'ring-purple-400' },
-                green: { name: 'White & Green', bg: 'from-green-50 to-emerald-100', btn: 'bg-green-500 hover:bg-green-600', btnLight: 'bg-green-100 hover:bg-green-200', text: 'text-green-600', ring: 'ring-green-400' }
+                aurora: { 
+                    n: '🌌 Aurora Dreams', 
+                    bg: 'from-purple-900 via-pink-800 to-indigo-900',
+                    overlay: 'from-purple-500/30 via-pink-500/20 to-indigo-500/30',
+                    btn: 'bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 hover:from-purple-600 hover:via-pink-600 hover:to-indigo-600', 
+                    light: 'bg-purple-400/30 hover:bg-purple-400/50', 
+                    text: 'text-purple-300', 
+                    f: "'Playfair Display', serif",
+                    dark: true
+                },
+                sunset: { 
+                    n: '🌅 Golden Sunset', 
+                    bg: 'from-orange-400 via-pink-400 to-purple-500',
+                    overlay: 'from-orange-200/20 via-pink-200/20 to-purple-200/20',
+                    btn: 'bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 hover:from-orange-600 hover:via-pink-600 hover:to-purple-600', 
+                    light: 'bg-orange-300/30 hover:bg-orange-300/50', 
+                    text: 'text-orange-200', 
+                    f: "'Poppins', sans-serif"
+                },
+                ocean: { 
+                    n: '🌊 Deep Ocean', 
+                    bg: 'from-blue-900 via-teal-800 to-cyan-900',
+                    overlay: 'from-blue-500/30 via-teal-500/20 to-cyan-500/30',
+                    btn: 'bg-gradient-to-r from-blue-500 via-teal-500 to-cyan-500 hover:from-blue-600 hover:via-teal-600 hover:to-cyan-600', 
+                    light: 'bg-blue-400/30 hover:bg-blue-400/50', 
+                    text: 'text-blue-300', 
+                    f: "'Poppins', sans-serif",
+                    dark: true
+                },
+                sakura: { 
+                    n: '🌸 Sakura Blossom', 
+                    bg: 'from-pink-200 via-rose-200 to-pink-300',
+                    overlay: 'from-pink-100/40 via-rose-100/30 to-pink-100/40',
+                    btn: 'bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 hover:from-pink-500 hover:via-rose-500 hover:to-pink-600', 
+                    light: 'bg-pink-200/40 hover:bg-pink-200/60', 
+                    text: 'text-pink-700', 
+                    f: "'Playfair Display', serif"
+                },
+                emerald: { 
+                    n: '💎 Emerald Paradise', 
+                    bg: 'from-emerald-600 via-teal-600 to-green-700',
+                    overlay: 'from-emerald-400/30 via-teal-400/20 to-green-400/30',
+                    btn: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 hover:from-emerald-600 hover:via-teal-600 hover:to-green-600', 
+                    light: 'bg-emerald-400/30 hover:bg-emerald-400/50', 
+                    text: 'text-emerald-200', 
+                    f: "'Montserrat', sans-serif"
+                },
+                royal: { 
+                    n: '👑 Royal Velvet', 
+                    bg: 'from-violet-900 via-purple-900 to-fuchsia-900',
+                    overlay: 'from-violet-500/30 via-purple-500/20 to-fuchsia-500/30',
+                    btn: 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-600', 
+                    light: 'bg-violet-400/30 hover:bg-violet-400/50', 
+                    text: 'text-violet-300', 
+                    f: "'Playfair Display', serif",
+                    dark: true
+                },
+                rose: { 
+                    n: '🌹 Rose Garden', 
+                    bg: 'from-rose-300 via-pink-300 to-red-300',
+                    overlay: 'from-rose-200/40 via-pink-200/30 to-red-200/40',
+                    btn: 'bg-gradient-to-r from-rose-400 via-pink-400 to-red-400 hover:from-rose-500 hover:via-pink-500 hover:to-red-500', 
+                    light: 'bg-rose-200/40 hover:bg-rose-200/60', 
+                    text: 'text-rose-700', 
+                    f: "'Playfair Display', serif"
+                },
+                midnight: { 
+                    n: '🌙 Midnight Sky', 
+                    bg: 'from-slate-900 via-blue-950 to-indigo-950',
+                    overlay: 'from-slate-800/30 via-blue-900/20 to-indigo-900/30',
+                    btn: 'bg-gradient-to-r from-slate-600 via-blue-600 to-indigo-600 hover:from-slate-700 hover:via-blue-700 hover:to-indigo-700', 
+                    light: 'bg-slate-700/30 hover:bg-slate-700/50', 
+                    text: 'text-slate-300', 
+                    f: "'Poppins', sans-serif",
+                    dark: true
+                }
             };
 
-            const theme = themes[currentTheme];
+            const tzs = { local: '🏠 Local Time', 'America/New_York': '🗽 New York', 'America/Los_Angeles': '🌴 Los Angeles', 'Europe/London': '🇬🇧 London', 'Asia/Tokyo': '🗼 Tokyo', 'Australia/Sydney': '🦘 Sydney' };
+            const quotes = [
+                "The only way to do great work is to love what you do. - Steve Jobs",
+                "Believe you can and you're halfway there. - Theodore Roosevelt", 
+                "Success is not final, failure is not fatal: it is the courage to continue that counts. - Winston Churchill",
+                "Dream big and dare to fail. - Norman Vaughan",
+                "The future belongs to those who believe in the beauty of their dreams. - Eleanor Roosevelt"
+            ];
+            const t = themes[theme];
 
             useEffect(() => {
-                const load = () => {
-                    try {
-                        const n = window.storage.get('notes');
-                        if (n && n.value) setNotes(n.value);
-                        
-                        const t = window.storage.get('tasks');
-                        if (t && t.value) {
-                            const parsed = JSON.parse(t.value);
-                            setTasks(parsed);
-                        }
-                        
-                        const l = window.storage.get('links');
-                        if (l && l.value) {
-                            const parsed = JSON.parse(l.value);
-                            setLinks(parsed);
-                        }
-                        
-                        const e = window.storage.get('events');
-                        if (e && e.value) {
-                            const parsed = JSON.parse(e.value);
-                            setEvents(parsed);
-                        }
-                        
-                        const th = window.storage.get('theme');
-                        if (th && th.value) setCurrentTheme(th.value);
-                    } catch (error) {
-                        console.error('Error loading data:', error);
-                    }
-                };
-                load();
+                const d = storage.get('notes'); if (d) setNotes(d.value);
+                const a = storage.get('tasks'); if (a) setTasks(JSON.parse(a.value));
+                const b = storage.get('links'); if (b) setLinks(JSON.parse(b.value));
+                const c = storage.get('events'); if (c) setEvents(JSON.parse(c.value));
+                const e = storage.get('habits'); if (e) setHabits(JSON.parse(e.value));
+                const f = storage.get('goals'); if (f) setGoals(JSON.parse(f.value));
+                const g = storage.get('images'); if (g) setImages(JSON.parse(g.value));
+                const h = storage.get('theme'); if (h) setTheme(h.value);
+                const i = storage.get('tz'); if (i) setTz(i.value);
             }, []);
 
-            useEffect(() => { 
-                window.storage.set('notes', notes); 
-            }, [notes]);
-            
-            useEffect(() => { 
-                if (tasks.length > 0) {
-                    window.storage.set('tasks', JSON.stringify(tasks));
-                } else {
-                    window.storage.delete('tasks');
-                }
-            }, [tasks]);
-            
-            useEffect(() => { 
-                if (links.length > 0) {
-                    window.storage.set('links', JSON.stringify(links));
-                } else {
-                    window.storage.delete('links');
-                }
-            }, [links]);
-            
-            useEffect(() => { 
-                if (events.length > 0) {
-                    window.storage.set('events', JSON.stringify(events));
-                } else {
-                    window.storage.delete('events');
-                }
-            }, [events]);
-            
-            useEffect(() => { 
-                window.storage.set('theme', currentTheme); 
-            }, [currentTheme]);
+            useEffect(() => { storage.set('notes', notes); }, [notes]);
+            useEffect(() => { tasks.length ? storage.set('tasks', JSON.stringify(tasks)) : storage.del('tasks'); }, [tasks]);
+            useEffect(() => { links.length ? storage.set('links', JSON.stringify(links)) : storage.del('links'); }, [links]);
+            useEffect(() => { events.length ? storage.set('events', JSON.stringify(events)) : storage.del('events'); }, [events]);
+            useEffect(() => { habits.length ? storage.set('habits', JSON.stringify(habits)) : storage.del('habits'); }, [habits]);
+            useEffect(() => { goals.length ? storage.set('goals', JSON.stringify(goals)) : storage.del('goals'); }, [goals]);
+            useEffect(() => { images.length ? storage.set('images', JSON.stringify(images)) : storage.del('images'); }, [images]);
+            useEffect(() => { storage.set('theme', theme); }, [theme]);
+            useEffect(() => { storage.set('tz', tz); }, [tz]);
+            useEffect(() => { const tm = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(tm); }, []);
+            useEffect(() => {
+                if (pomRun && pomSec > 0) {
+                    const tm = setTimeout(() => setPomSec(pomSec - 1), 1000);
+                    return () => clearTimeout(tm);
+                } else if (pomSec === 0) { setPomRun(false); alert('⏰ Timer finished!'); setPomSec(pomMin * 60); }
+            }, [pomRun, pomSec]);
 
-            const addTask = () => {
-                if (newTask && newTaskDate) {
-                    setTasks([...tasks, { id: Date.now(), text: newTask, date: newTaskDate, done: false }]);
-                    setNewTask('');
-                    setNewTaskDate('');
+            const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            const getDays = () => { const y = curDate.getFullYear(), m = curDate.getMonth(); return { first: new Date(y,m,1).getDay(), last: new Date(y,m+1,0).getDate() }; };
+            const {first, last} = getDays();
+            const fmt = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+            const disp = tz === 'local' ? time : new Date(time.toLocaleString('en-US', {timeZone: tz}));
+
+            const handleSearchSubmit = (e) => {
+                e.preventDefault();
+                if (search.trim()) {
+                    window.open(`https://www.google.com/search?q=${encodeURIComponent(search)}`, '_blank');
+                    setSearch('');
                 }
             };
 
-            const addLink = () => {
-                if (newLink.title && newLink.url) {
-                    let url = newLink.url;
-                    if (!url.startsWith('http')) url = 'https://' + url;
-                    setLinks([...links, { id: Date.now(), title: newLink.title, url }]);
-                    setNewLink({ title: '', url: '' });
-                }
+            const handleDragStart = (e, id) => {
+                setDragImg(id);
+                e.dataTransfer.effectAllowed = 'move';
             };
 
-            const addEvent = () => {
-                if (newEvent && selectedDay) {
-                    setEvents([...events, { id: Date.now(), date: selectedDay, text: newEvent }]);
-                    setNewEvent('');
-                    setShowEventModal(false);
-                }
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
             };
 
-            const getDays = () => {
-                const y = currentDate.getFullYear();
-                const m = currentDate.getMonth();
-                const first = new Date(y, m, 1).getDay();
-                const last = new Date(y, m + 1, 0).getDate();
-                return { first, last };
+            const handleDrop = (e, targetId) => {
+                e.preventDefault();
+                if (dragImg === targetId) return;
+                
+                const dragIndex = images.findIndex(img => img.id === dragImg);
+                const targetIndex = images.findIndex(img => img.id === targetId);
+                
+                const newImages = [...images];
+                const [removed] = newImages.splice(dragIndex, 1);
+                newImages.splice(targetIndex, 0, removed);
+                
+                setImages(newImages);
+                setDragImg(null);
             };
-
-            const { first, last } = getDays();
-            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
             return (
-                <div className={`min-h-screen bg-gradient-to-br ${theme.bg} p-6`}>
-                    {/* Embedded Tab Viewer */}
+                <div className={`min-h-screen bg-gradient-to-br ${t.bg} p-4 md:p-8 relative overflow-hidden`} style={{fontFamily: t.f}}>
+                    <div className={`absolute inset-0 bg-gradient-to-br ${t.overlay} pointer-events-none`}></div>
+                    
                     {openTab && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-2xl w-full max-w-6xl h-5/6 flex flex-col`}>
-                                <div className={`flex items-center justify-between p-4 border-b ${theme.isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                                    <h3 className={`text-xl font-bold ${theme.isDark ? 'text-white' : 'text-gray-800'} truncate`}>{openTab.title}</h3>
-                                    <button onClick={() => setOpenTab(null)} className={theme.isDark ? 'text-gray-300' : 'text-gray-600'}>×</button>
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className={`${t.dark ? 'glass-dark' : 'glass'} rounded-3xl w-full max-w-6xl h-5/6 flex flex-col overflow-hidden`}>
+                                <div className={`flex items-center justify-between px-6 py-4 border-b ${t.dark?'border-white/10':'border-black/10'}`}>
+                                    <h3 className={`text-xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>{openTab.title}</h3>
+                                    <button onClick={()=>setOpenTab(null)} className={`text-3xl ${t.dark?'text-white':'text-gray-800'} hover:scale-110 transition-transform`}>×</button>
                                 </div>
-                                <iframe src={openTab.url} className="flex-1 w-full rounded-b-2xl" title={openTab.title} />
+                                <iframe src={openTab.url} className="flex-1 w-full" />
                             </div>
                         </div>
                     )}
 
-                    {showThemeMenu && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-2xl p-6 max-w-md w-full`}>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className={`text-2xl font-bold ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Choose Theme</h3>
-                                    <button onClick={() => setShowThemeMenu(false)} className={theme.isDark ? 'text-gray-300' : 'text-gray-600'}>×</button>
+                    {showTheme && (
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className={`${t.dark ? 'glass-dark' : 'glass'} rounded-3xl p-8 max-w-3xl w-full`}>
+                                <div className="flex justify-between mb-6">
+                                    <h3 className={`text-3xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>Choose Your Vibe ✨</h3>
+                                    <button onClick={()=>setShowTheme(false)} className={`text-3xl ${t.dark?'text-white':'text-gray-800'}`}>×</button>
                                 </div>
-                                <div className="space-y-2">
-                                    {Object.entries(themes).map(([key, t]) => (
-                                        <button key={key} onClick={() => { setCurrentTheme(key); setShowThemeMenu(false); }}
-                                            className={`w-full p-4 rounded-lg border-2 text-left transition-all ${currentTheme === key ? 'border-rose-500 bg-gray-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${t.bg}`}></div>
-                                                <span className={`font-medium ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>{t.name}</span>
-                                            </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {Object.entries(themes).map(([k,v])=>(
+                                        <button key={k} onClick={()=>{setTheme(k);setShowTheme(false);}}
+                                            className={`p-6 rounded-2xl border-2 transition-all hover:scale-105 ${theme===k?'border-white/60 shadow-2xl scale-105':'border-white/20'} ${v.dark?'glass-dark':'glass'}`}>
+                                            <div className={`w-full h-20 rounded-xl bg-gradient-to-br ${v.bg} mb-3 shadow-lg`}></div>
+                                            <span className={`font-bold text-sm ${v.dark?'text-white':'text-gray-800'}`}>{v.n}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -211,159 +261,133 @@
                         </div>
                     )}
 
-                    {showEventModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4`}>
-                                <h3 className={`text-2xl font-bold mb-4 ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Add Event</h3>
-                                <input type="text" value={newEvent} onChange={(e) => setNewEvent(e.target.value)}
-                                    placeholder="Event details..." className={`w-full px-4 py-2 border rounded-lg mb-4 ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} />
-                                <div className="flex gap-2">
-                                    <button onClick={addEvent} className={`flex-1 px-4 py-2 ${theme.btn} text-white rounded-lg`}>Add</button>
-                                    <button onClick={() => setShowEventModal(false)} className={`flex-1 px-4 py-2 ${theme.isDark ? 'bg-gray-700 text-white' : 'bg-gray-200'} rounded-lg`}>Cancel</button>
+                    {showTz && (
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className={`${t.dark ? 'glass-dark' : 'glass'} rounded-3xl p-8 max-w-md w-full`}>
+                                <div className="flex justify-between mb-6">
+                                    <h3 className={`text-2xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>Select Timezone 🌍</h3>
+                                    <button onClick={()=>setShowTz(false)} className={`text-3xl ${t.dark?'text-white':'text-gray-800'}`}>×</button>
+                                </div>
+                                <div className="space-y-2">
+                                    {Object.entries(tzs).map(([k,v])=>(
+                                        <button key={k} onClick={()=>{setTz(k);setShowTz(false);}}
+                                            className={`w-full p-4 rounded-xl transition-all font-semibold ${tz===k?`${t.btn} text-white shadow-lg`:`${t.light} ${t.dark?'text-white':'text-gray-800'}`}`}>{v}</button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-8">
-                            <div className="flex items-center justify-center mb-4">
-                                <button onClick={() => setShowThemeMenu(true)} className={`${theme.btn} text-white p-3 rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2`}>
-                                    <span className="text-lg">🎨</span>
-                                    <span className="font-medium">Change Theme</span>
-                                </button>
+                    {showTimer && (
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className={`${t.dark ? 'glass-dark' : 'glass'} rounded-3xl p-8 max-w-md w-full`}>
+                                <h3 className={`text-2xl font-bold mb-6 ${t.dark?'text-white':'text-gray-800'}`}>Timer Duration ⏱️</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[5,10,15,20,25,30,45,60].map(m=>(
+                                        <button key={m} onClick={()=>{setPomMin(m);setPomSec(m*60);setShowTimer(false);}}
+                                            className={`p-4 rounded-xl transition-all font-bold ${pomMin===m?`${t.btn} text-white shadow-lg scale-105`:`${t.light} ${t.dark?'text-white':'text-gray-800'}`}`}>{m} min</button>
+                                    ))}
+                                </div>
                             </div>
-                            <h1 className={`text-4xl font-bold ${theme.isDark ? 'text-white' : 'text-gray-800'} mb-2`}>My Dashboard</h1>
-                            <p className={theme.isDark ? 'text-gray-300' : 'text-gray-600'}>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                         </div>
-                        
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Calendar */}
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6 lg:col-span-2`}>
+                    )}
+
+                    {showEvent && (
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className={`${t.dark ? 'glass-dark' : 'glass'} rounded-3xl p-8 max-w-md w-full`}>
+                                <h3 className={`text-2xl font-bold mb-4 ${t.dark?'text-white':'text-gray-800'}`}>Add Event 📅</h3>
+                                <input id="evtInput" type="text" placeholder="Event details..." 
+                                    className={`w-full px-4 py-3 border-2 rounded-xl mb-4 font-medium ${t.dark?'bg-black/30 border-white/20 text-white placeholder-white/50':'bg-white/50 border-black/10 placeholder-gray-500'}`} />
+                                <div className="flex gap-3">
+                                    <button onClick={()=>{
+                                        const val = document.getElementById('evtInput').value;
+                                        if(val && selDay) {
+                                            setEvents([...events, {id:Date.now(), date:selDay, text:val}]);
+                                            setShowEvent(false);
+                                            document.getElementById('evtInput').value = '';
+                                        }
+                                    }} className={`flex-1 px-6 py-3 ${t.btn} text-white rounded-xl font-bold shadow-lg`}>Add</button>
+                                    <button onClick={()=>setShowEvent(false)} className={`flex-1 px-6 py-3 ${t.light} rounded-xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="max-w-7xl mx-auto relative z-10">
+                        <div className="mb-8">
+                            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                <button onClick={()=>setShowTheme(true)} className={`px-8 py-4 ${t.btn} text-white rounded-2xl font-bold shadow-2xl widget-card`}>
+                                    🎨 Themes
+                                </button>
+                                
+                                <form onSubmit={handleSearchSubmit} className="flex-1 max-w-2xl">
+                                    <input 
+                                        type="text"
+                                        value={search} 
+                                        onChange={(e)=>setSearch(e.target.value)}
+                                        placeholder="🔍 Search Google..." 
+                                        className={`w-full px-6 py-4 border-2 rounded-2xl shadow-xl font-semibold ${t.dark?'glass-dark border-white/20 text-white placeholder-white/60':'glass border-white/40 placeholder-gray-600'}`} 
+                                    />
+                                </form>
+
+                                <div onClick={()=>setShowTz(true)} className={`${t.dark?'glass-dark':'glass'} px-8 py-4 rounded-2xl shadow-2xl cursor-pointer widget-card`}>
+                                    <div className={`text-4xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>{disp.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</div>
+                                    <div className={`text-sm font-medium ${t.dark?'text-white/70':'text-gray-600'}`}>{disp.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+                                </div>
+                            </div>
+
+                            <div className={`${t.dark?'glass-dark':'glass'} rounded-2xl p-6 text-center shadow-2xl`}>
+                                <p className={`text-xl font-semibold italic ${t.dark?'text-white':'text-gray-800'}`}>"{quotes[new Date().getDate()%quotes.length]}"</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className={`${t.dark?'glass-dark':'glass'} rounded-2xl shadow-2xl p-6 widget-card`}>
                                 <div className="flex justify-between mb-4">
-                                    <h2 className={`text-2xl font-bold ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Calendar</h2>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-                                            className={`px-3 py-1 ${theme.btnLight} ${theme.isDark ? 'text-white' : ''} rounded-lg`}>Prev</button>
-                                        <button onClick={() => setCurrentDate(new Date())}
-                                            className={`px-3 py-1 ${theme.btn} text-white rounded-lg`}>Today</button>
-                                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-                                            className={`px-3 py-1 ${theme.btnLight} ${theme.isDark ? 'text-white' : ''} rounded-lg`}>Next</button>
+                                    <h2 className={`text-2xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>⏱️ Focus Timer</h2>
+                                    <button onClick={()=>setShowTimer(true)} className="text-3xl hover:scale-110 transition-transform">⚙️</button>
+                                </div>
+                                <div className="text-center">
+                                    <div className={`text-6xl font-bold mb-4 ${t.dark?'text-white':'text-gray-800'}`}>{fmt(pomSec)}</div>
+                                    <div className="flex gap-3">
+                                        <button onClick={()=>setPomRun(!pomRun)} className={`flex-1 px-6 py-4 ${t.btn} text-white rounded-xl font-bold shadow-lg`}>
+                                            {pomRun?'⏸️':'▶️'}
+                                        </button>
+                                        <button onClick={()=>{setPomSec(pomMin*60);setPomRun(false);}} className={`flex-1 px-6 py-4 ${t.light} rounded-xl font-bold ${t.dark?'text-white':'text-gray-800'}`}>🔄</button>
                                     </div>
                                 </div>
-                                <div className={`text-center text-xl font-bold mb-4 ${theme.isDark ? 'text-gray-200' : 'text-gray-700'}`}>{months[currentDate.getMonth()]} {currentDate.getFullYear()}</div>
-                                <div className="grid grid-cols-7 gap-2">
-                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                                        <div key={d} className={`text-center font-bold text-sm py-2 ${theme.isDark ? 'text-gray-400' : 'text-gray-600'}`}>{d}</div>
-                                    ))}
-                                    {Array.from({ length: first }).map((_, i) => <div key={`e${i}`} />)}
-                                    {Array.from({ length: last }).map((_, i) => {
-                                        const day = i + 1;
-                                        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                        const dayEvents = events.filter(e => e.date === dateStr);
-                                        const hasEvent = dayEvents.length > 0;
-                                        const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-                                        return (
-                                            <div key={day} className="relative">
-                                                <button onClick={() => { setSelectedDay(dateStr); setShowEventModal(true); }}
-                                                    className={`w-full aspect-square rounded-lg font-medium ${isToday ? `${theme.btn.split(' ')[0]} text-white` : `${theme.isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-50 hover:bg-gray-100'}`} ${hasEvent ? `ring-2 ${theme.ring}` : ''}`}>
-                                                    {day}
-                                                    {hasEvent && <div className={`absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 ${theme.btn.split(' ')[0].replace('bg-', 'bg-')} rounded-full`}></div>}
-                                                </button>
-                                                {hasEvent && (
-                                                    <div className={`absolute top-full left-0 right-0 mt-1 ${theme.isDark ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-lg p-2 z-10 text-xs max-h-32 overflow-y-auto`}>
-                                                        {dayEvents.map(event => (
-                                                            <div key={event.id} className="flex items-start gap-1 mb-1 last:mb-0">
-                                                                <span className={`flex-1 ${theme.isDark ? 'text-gray-200' : 'text-gray-700'}`}>{event.text}</span>
-                                                                <button onClick={(e) => { e.stopPropagation(); setEvents(events.filter(ev => ev.id !== event.id)); }} className="text-red-500 hover:text-red-700">×</button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
                             </div>
 
-                            {/* Notes */}
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
-                                <h2 className={`text-2xl font-bold mb-4 ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Notes</h2>
-                                <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-                                    placeholder="Write notes..." className={`w-full h-64 p-3 border rounded-lg resize-none ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`} />
-                            </div>
-
-                            {/* Tasks */}
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6 lg:col-span-2`}>
-                                <h2 className={`text-2xl font-bold mb-4 ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Tasks</h2>
+                            <div className={`${t.dark?'glass-dark':'glass'} rounded-2xl shadow-2xl p-6 widget-card`}>
+                                <h2 className={`text-2xl font-bold mb-4 ${t.dark?'text-white':'text-gray-800'}`}>✅ Daily Habits</h2>
                                 <div className="flex gap-2 mb-4">
-                                    <input type="text" value={newTask} onChange={(e) => setNewTask(e.target.value)}
-                                        placeholder="New task..." className={`flex-1 px-4 py-2 border rounded-lg ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`} />
-                                    <input type="date" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)}
-                                        className={`px-4 py-2 border rounded-lg ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} />
-                                    <button onClick={addTask} className={`px-4 py-2 ${theme.btn} text-white rounded-lg`}>Add</button>
+                                    <input id="habInput" type="text" placeholder="Add habit..." 
+                                        className={`flex-1 px-4 py-3 border-2 rounded-xl font-medium ${t.dark?'bg-black/30 border-white/20 text-white placeholder-white/50':'bg-white/50 border-black/10'}`} />
+                                    <button onClick={()=>{
+                                        const val = document.getElementById('habInput').value;
+                                        if(val.trim()) {
+                                            setHabits([...habits, {id:Date.now(), text:val, done:false}]);
+                                            document.getElementById('habInput').value = '';
+                                        }
+                                    }} className={`px-5 py-3 ${t.btn} text-white rounded-xl font-bold text-xl`}>+</button>
                                 </div>
-                                <div className="space-y-2">
-                                    {tasks.map(t => (
-                                        <div key={t.id} className={`flex items-center gap-3 p-3 rounded-lg ${theme.isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                                            <input type="checkbox" checked={t.done} onChange={() => setTasks(tasks.map(x => x.id === t.id ? {...x, done: !x.done} : x))} />
-                                            <div className="flex-1">
-                                                <div className={`${t.done ? 'line-through text-gray-500' : theme.isDark ? 'text-white' : ''}`}>{t.text}</div>
-                                                <div className={`text-sm ${theme.isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t.date}</div>
-                                            </div>
-                                            <button onClick={() => setTasks(tasks.filter(x => x.id !== t.id))} className="text-red-500">×</button>
+                                <div className="space-y-2 max-h-56 overflow-y-auto">
+                                    {habits.map(h=>(
+                                        <div key={h.id} className={`flex items-center gap-3 p-4 rounded-xl ${t.dark?'bg-black/20':'bg-white/30'} backdrop-blur-sm`}>
+                                            <input type="checkbox" checked={h.done} onChange={()=>setHabits(habits.map(x=>x.id===h.id?{...x,done:!x.done}:x))} className="w-6 h-6" />
+                                            <span className={`flex-1 font-medium ${h.done?'line-through opacity-50':''} ${t.dark?'text-white':'text-gray-800'}`}>{h.text}</span>
+                                            <button onClick={()=>setHabits(habits.filter(x=>x.id!==h.id))} className="text-red-500 hover:text-red-600 text-2xl font-bold">×</button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Links */}
-                            <div className={`${theme.isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6`}>
-                                <h2 className={`text-2xl font-bold mb-4 ${theme.isDark ? 'text-white' : 'text-gray-800'}`}>Quick Links</h2>
-                                
-                                {/* Info Note */}
-                                <div className={`mb-4 p-3 border rounded-lg text-sm ${theme.isDark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-rose-50 border-rose-200 text-gray-700'}`}>
-                                    <p className="font-semibold mb-1">📌 Opening Links:</p>
-                                    <p className="mb-1"><strong>Dashboard:</strong> Works for blogs, docs, Wikipedia, smaller sites</p>
-                                    <p><strong>New Tab:</strong> Works for ALL sites (Google, Facebook, Amazon, etc.)</p>
-                                </div>
-
-                                <div className="flex flex-col gap-2 mb-4">
-                                    <input type="text" value={newLink.title} onChange={(e) => setNewLink({...newLink, title: e.target.value})}
-                                        placeholder="Title..." className={`px-4 py-2 border rounded-lg ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`} />
-                                    <input type="text" value={newLink.url} onChange={(e) => setNewLink({...newLink, url: e.target.value})}
-                                        placeholder="URL..." className={`px-4 py-2 border rounded-lg ${theme.isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`} />
-                                    <button onClick={addLink} className={`px-4 py-2 ${theme.btn} text-white rounded-lg`}>Add Link</button>
-                                </div>
-                                <div className="space-y-2">
-                                    {links.map(l => (
-                                        <div key={l.id} className={`flex items-center gap-2 p-3 rounded-lg ${theme.isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                                            <div className="flex-1 flex items-center gap-2">
-                                                <span className={`${theme.isDark ? 'text-gray-200' : 'text-gray-700'} truncate`}>{l.title}</span>
-                                            </div>
-                                            <button onClick={() => setOpenTab({ title: l.title, url: l.url })}
-                                                className={`px-3 py-1 ${theme.btnLight} ${theme.isDark ? 'text-white' : ''} rounded text-sm font-medium whitespace-nowrap`}
-                                                title="Open in dashboard">
-                                                Dashboard
-                                            </button>
-                                            <a href={l.url} target="_blank" rel="noopener noreferrer"
-                                                className={`px-3 py-1 rounded text-sm font-medium whitespace-nowrap ${theme.isDark ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
-                                                title="Open in new tab">
-                                                New Tab
-                                            </a>
-                                            <button onClick={() => setLinks(links.filter(x => x.id !== l.id))} className="text-red-500 hover:text-red-700">×</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        ReactDOM.render(<Dashboard />, document.getElementById('root'));
-    </script>
-</body>
-</html>
-```
+                            <div className={`${t.dark?'glass-dark':'glass'} rounded-2xl shadow-2xl p-6 widget-card`}>
+                                <h2 className={`text-2xl font-bold mb-4 ${t.dark?'text-white':'text-gray-800'}`}>🎯 Goals</h2>
+                                <div className="flex gap-2 mb-4">
+                                    <input id="goalInput" type="text" placeholder="New goal..." 
+                                        className={`flex-1 px-4 py-3 border-2 rounded-xl font-medium ${t.dark?'bg-black/30 border-white/20 text-white placeholder-white/50':'bg-white/50 border-black/10'}`} />
+                                    <button onClick={()=>{
+                                        const val = document.getElementById('goalInput').value;
+                                        if(val.trim()) {
+                                            set
