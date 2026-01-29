@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard V5</title>
+
+<style>
+body{
+font-family:Segoe UI;
+margin:0;
+background:linear-gradient(135deg,#0f172a,#1e293b);
+color:white;
+transition:.5s;
+}
+
+header{
+padding:12px;
+text-align:center;
+background:rgba(0,0,0,.4);
+}
+
+.section{display:none;padding:15px;padding-bottom:80px}
+.section.active{display:block;animation:fade .3s}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
+}
+
+.tabs{
+position:fixed;
+bottom:0;
+width:100%;
+display:flex;
+background:#111;
+}
+
+.tab{
+flex:1;
+padding:10px;
+text-align:center;
+cursor:pointer;
+}
+
+.card{
+background:rgba(255,255,255,.08);
+padding:10px;
+border-radius:10px;
+margin-top:8px;
+animation:pop .3s;
+}
+
+@keyframes pop{
+from{transform:scale(.95);opacity:0}
+to{transform:scale(1);opacity:1}
+}
+
+.widget{
+background:rgba(255,255,255,.1);
+padding:12px;
+border-radius:12px;
+margin-top:10px;
+animation:float 3s infinite ease-in-out;
+}
+
+@keyframes float{
+0%{transform:translateY(0)}
+50%{transform:translateY(-5px)}
+100%{transform:translateY(0)}
+}
+
+input,textarea,button{
+width:100%;
+padding:8px;
+margin-top:6px;
+border-radius:8px;
+border:none;
+}
+
+.theme-fashion{
+background:linear-gradient(135deg,#ffb6c1,#ffe4e1,#ffd1dc);
+color:#222;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+Dashboard V5
+<select onchange="theme(this.value)">
+<option value="">Default</option>
+<option value="theme-fashion">Fashion</option>
+</select>
+</header>
+
+<div id="login" class="section active">
+<h3>Login</h3>
+<input id="user" placeholder="Profile name">
+<button onclick="login()">Enter</button>
+</div>
+
+<div id="app" style="display:none">
+
+<!-- HOME -->
+<div class="section active">
+<h3>Home Widgets</h3>
+<div class="widget">📅 <span id="today"></span></div>
+<div class="widget">✨ Focus → consistency beats motivation</div>
+</div>
+
+<!-- SCHOOL PLANNER -->
+<div class="section">
+<h3>School Planner Mode</h3>
+<input id="subject" placeholder="Subject">
+<input id="assignment" placeholder="Assignment">
+<input id="due" type="date">
+<button onclick="addPlan()">Add</button>
+<div id="planner"></div>
+</div>
+
+<!-- ATTENDANCE -->
+<div class="section">
+<h3>Teacher Attendance Tracker</h3>
+<input id="studentName" placeholder="Student name">
+<select id="status">
+<option>Present</option>
+<option>Absent</option>
+<option>Late</option>
+</select>
+<button onclick="markAttendance()">Record</button>
+<div id="attendance"></div>
+</div>
+
+<!-- AI HELPER -->
+<div class="section">
+<h3>AI Homework Helper</h3>
+<textarea id="aiIn"></textarea>
+<button onclick="ai()">Help</button>
+<div class="card" id="aiOut"></div>
+</div>
+
+<div class="tabs">
+<div class="tab" onclick="tab(0)">Home</div>
+<div class="tab" onclick="tab(1)">Planner</div>
+<div class="tab" onclick="tab(2)">Attendance</div>
+<div class="tab" onclick="tab(3)">AI</div>
+</div>
+
+</div>
+
+<script>
+let user="";
+
+function login(){
+user=document.getElementById("user").value;
+if(!user)return;
+login.style.display="none";
+app.style.display="block";
+today.innerText=new Date().toDateString();
+renderPlanner();
+renderAttendance();
+}
+
+function save(k,d){localStorage.setItem(user+k,JSON.stringify(d))}
+function load(k){return JSON.parse(localStorage.getItem(user+k))||[]}
+
+function tab(i){
+document.querySelectorAll(".section").forEach((s,x)=>s.classList.toggle("active",x===i));
+}
+
+/* PLANNER */
+function addPlan(){
+let s=subject.value;
+let a=assignment.value;
+let d=due.value;
+let list=load("planner");
+list.push(`${s} — ${a} (${d})`);
+save("planner",list);
+renderPlanner();
+}
+
+function renderPlanner(){
+planner.innerHTML="";
+load("planner").forEach(x=>{
+let c=document.createElement("div");
+c.className="card";
+c.innerText=x;
+planner.appendChild(c);
+});
+}
+
+/* ATTENDANCE */
+function markAttendance(){
+let n=studentName.value;
+let st=status.value;
+let list=load("attendance");
+list.push(`${new Date().toLocaleDateString()} | ${n} — ${st}`);
+save("attendance",list);
+renderAttendance();
+}
+
+function renderAttendance(){
+attendance.innerHTML="";
+load("attendance").forEach(x=>{
+let c=document.createElement("div");
+c.className="card";
+c.innerText=x;
+attendance.appendChild(c);
+});
+}
+
+/* AI */
+function ai(){
+let q=aiIn.value.toLowerCase();
+let r="Break the task into steps.";
+if(q.includes("essay")) r="Essay structure: intro → body → evidence → conclusion.";
+if(q.includes("math")) r="Write formula → plug numbers → solve slowly.";
+if(q.includes("study")) r="Use spaced repetition + active recall.";
+aiOut.innerText=r;
+}
+
+function theme(t){document.body.className=t}
+</script>
+
+</body>
+</html>
